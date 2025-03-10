@@ -1,99 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Python Code Editor</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.min.css" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #2e2e2e;
-      color: white;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Code Editor</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #e0f7fa; /* Light Blue background */
+            color: #004d40; /* Dark Green Text */
+            margin: 0;
+            padding: 0;
+        }
 
-    #editor {
-      height: 50%;
-      width: 100%;
-      background-color: #1e1e1e;
-      color: white;
-    }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
 
-    .output {
-      height: 30%;
-      width: 100%;
-      background-color: #222;
-      color: #00ff7f;
-      padding: 10px;
-      overflow-y: auto;
-      font-family: 'Courier New', Courier, monospace;
-      white-space: pre-wrap;
-    }
+        .editor {
+            width: 80%;
+            height: 400px;
+            background-color: #b2dfdb; /* Light Green background for editor */
+            border: 1px solid #004d40;
+            padding: 10px;
+            font-size: 16px;
+            color: #004d40;
+            border-radius: 8px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
 
-    .run-button {
-      background-color: #ff1493;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      border-radius: 5px;
-      margin: 20px auto;
-      display: block;
-    }
+        .editor:focus {
+            outline: none;
+        }
 
-    .run-button:hover {
-      background-color: #ff69b4;
-    }
+        .output {
+            width: 80%;
+            height: 150px;
+            background-color: #e0f7fa;
+            border: 1px solid #004d40;
+            padding: 10px;
+            font-size: 16px;
+            color: #004d40;
+            border-radius: 8px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
 
-    .guided-assistance {
-      color: #ff6347;
-      font-size: 12px;
-      margin: 10px auto;
-      text-align: center;
-    }
-  </style>
+        .btn-container {
+            margin-top: 20px;
+        }
+
+        button {
+            background-color: #004d40;
+            color: white;
+            font-size: 16px;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #00796b;
+        }
+
+        .line-number {
+            display: inline-block;
+            width: 30px;
+            text-align: right;
+            color: #004d40;
+            padding-right: 10px;
+        }
+
+        .code-line {
+            display: flex;
+        }
+    </style>
 </head>
 <body>
-  <div id="editor"></div>
-  <button class="run-button" onclick="runCode()">Run Code</button>
-  <div id="output" class="output"></div>
-  <div class="guided-assistance">Start typing your Python code. Use Python 3 syntax!</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
-  <script>
-    // Initialize the Ace editor
-    var editor = ace.edit("editor");
-    editor.setTheme("ace/theme/monokai");
-    editor.session.setMode("ace/mode/python");
+<div class="container">
+    <div class="editor" contenteditable="true" id="editor"></div>
 
-    // Function to run the code
-    function runCode() {
-      var code = editor.getValue();
-      document.getElementById('output').textContent = "Running...\n";
+    <div class="btn-container">
+        <button onclick="runCode()">Run Code</button>
+    </div>
 
-      // Using fetch API to send the code to the server for execution
-      fetch('/run-python', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ code: code })
-      })
-      .then(response => response.json())
-      .then(data => {
-        // Display the output
-        document.getElementById('output').textContent = data.output;
-      })
-      .catch(error => {
-        document.getElementById('output').textContent = "Error: " + error.message;
-      });
+    <div class="output" id="output"></div>
+</div>
+
+<script>
+    const editor = document.getElementById('editor');
+    const outputWindow = document.getElementById('output');
+
+    // Line numbering
+    editor.addEventListener('input', updateLineNumbers);
+    
+    function updateLineNumbers() {
+        const lines = editor.innerText.split('\n');
+        const lineNumberContainer = editor.previousElementSibling;
+        lineNumberContainer.innerHTML = '';
+        lines.forEach((line, index) => {
+            const lineNumber = document.createElement('div');
+            lineNumber.className = 'line-number';
+            lineNumber.innerText = index + 1;
+            editor.prepend(lineNumber);
+        });
     }
-  </script>
+
+    // Run Python code when button is clicked
+    function runCode() {
+        const code = editor.innerText.trim();
+
+        if (!code) {
+            alert("Please write some Python code first.");
+            return;
+        }
+
+        fetch('https://api.codeexecution.com/run-python', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code: code })
+        })
+        .then(response => response.json())
+        .then(data => {
+            outputWindow.innerHTML = `<pre>${data.output}</pre>`;
+        })
+        .catch(error => {
+            outputWindow.innerHTML = `<pre>Error: ${error.message}</pre>`;
+        });
+    }
+
+    // For word prediction functionality (simplified version)
+    // You can implement a more sophisticated word prediction using libraries.
+    editor.addEventListener('input', function() {
+        const text = editor.innerText;
+        const lastWord = text.split(' ').pop();
+        const predictions = getWordPredictions(lastWord);
+        console.log(predictions); // just for debugging
+    });
+
+    function getWordPredictions(word) {
+        const pythonKeywords = ["def", "import", "print", "if", "else", "for", "while"];
+        return pythonKeywords.filter(keyword => keyword.startsWith(word));
+    }
+
+    // Initial line number update
+    updateLineNumbers();
+</script>
+
 </body>
 </html>
