@@ -1,274 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spinning Octagon with Bouncy Ball Duplication</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-            background-color: black;
-        }
-        #counter {
-            position: absolute;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 48px;
-            font-family: 'Moliga', sans-serif;
-        }
-        #bounceCounter {
-            position: absolute;
-            top: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 48px;
-            font-family: 'Moliga', sans-serif;
-        }
-        #duplicatingText {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 48px;
-            font-family: 'Moliga', sans-serif;
-        }
-        @font-face {
-            font-family: 'Moliga';
-            src: url('https://fonts.gstatic.com/s/moliga/v3/6xkdlRXyI5Vt4c_YY2zwjPElZsRpE-wj7n2J3pVv0s8.woff2') format('woff2');
-            font-weight: normal;
-            font-style: normal;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python Code Editor</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.min.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #2e2e2e;
+      color: white;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #editor {
+      height: 50%;
+      width: 100%;
+      background-color: #1e1e1e;
+      color: white;
+    }
+
+    .output {
+      height: 30%;
+      width: 100%;
+      background-color: #222;
+      color: #00ff7f;
+      padding: 10px;
+      overflow-y: auto;
+      font-family: 'Courier New', Courier, monospace;
+      white-space: pre-wrap;
+    }
+
+    .run-button {
+      background-color: #ff1493;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      margin: 20px auto;
+      display: block;
+    }
+
+    .run-button:hover {
+      background-color: #ff69b4;
+    }
+
+    .guided-assistance {
+      color: #ff6347;
+      font-size: 12px;
+      margin: 10px auto;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    <div id="counter">1</div>
-    <div id="bounceCounter">0</div>
-    <div id="duplicatingText">Duplicating Balls</div>
-    <audio id="ballSpawnSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
-    <audio id="collisionSound" src="https://www.soundjay.com/button/beep-04.wav" preload="auto"></audio>
-    <script>
-        const canvas = document.getElementById("canvas");
-        const ctx = canvas.getContext("2d");
+  <div id="editor"></div>
+  <button class="run-button" onclick="runCode()">Run Code</button>
+  <div id="output" class="output"></div>
+  <div class="guided-assistance">Start typing your Python code. Use Python 3 syntax!</div>
 
-        const BALL_RADIUS = 10;
-        const OCTAGON_RADIUS = 300;
-        const OCTAGON_COLOR = '#FFFFFF';
-        let octagonAngle = 0;
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+  <script>
+    // Initialize the Ace editor
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/monokai");
+    editor.session.setMode("ace/mode/python");
 
-        let balls = [{
-            x: window.innerWidth / 2 + OCTAGON_RADIUS / 2,
-            y: window.innerHeight / 2,
-            radius: BALL_RADIUS,
-            velocityX: Math.random() * 4 + 8,
-            velocityY: Math.random() * 4 + 8,
-            color: getRandomColor(),
-            rotation: 0,
-            rotationVelocity: 0,
-            bounceCount: 0,
-        }];
+    // Function to run the code
+    function runCode() {
+      var code = editor.getValue();
+      document.getElementById('output').textContent = "Running...\n";
 
-        let lastDuplicationTime = 0;
-
-        function updateCanvasSize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-
-        function applyPhysics(ball) {
-            ball.x += ball.velocityX * 0.25;
-            ball.y += ball.velocityY * 0.25;
-            ball.rotation += ball.rotationVelocity;
-        }
-
-        function getRandomColor() {
-            let color;
-            do {
-                color = '#' + Math.floor(Math.random() * 16777215).toString(16);
-            } while (color === '#000000');
-            return color;
-        }
-
-        function distanceToLine(px, py, x1, y1, x2, y2) {
-            const A = px - x1;
-            const B = py - y1;
-            const C = x2 - x1;
-            const D = y2 - y1;
-            const dot = A * C + B * D;
-            const len_sq = C * C + D * D;
-            const param = (len_sq != 0) ? dot / len_sq : -1;
-            let closestX, closestY;
-
-            if (param < 0) {
-                closestX = x1;
-                closestY = y1;
-            } else if (param > 1) {
-                closestX = x2;
-                closestY = y2;
-            } else {
-                closestX = x1 + param * C;
-                closestY = y1 + param * D;
-            }
-
-            const dx = px - closestX;
-            const dy = py - closestY;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        function checkCollision(ball) {
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-            const octagonVertices = [];
-
-            for (let i = 0; i < 8; i++) {
-                const angle = Math.PI / 4 * i + octagonAngle;
-                const x = centerX + OCTAGON_RADIUS * Math.cos(angle);
-                const y = centerY + OCTAGON_RADIUS * Math.sin(angle);
-                octagonVertices.push({x, y});
-            }
-
-            for (let i = 0; i < 8; i++) {
-                const x1 = octagonVertices[i].x;
-                const y1 = octagonVertices[i].y;
-                const x2 = octagonVertices[(i + 1) % 8].x;
-                const y2 = octagonVertices[(i + 1) % 8].y;
-
-                const dist = distanceToLine(ball.x, ball.y, x1, y1, x2, y2);
-
-                if (dist < ball.radius) {
-                    const angle = Math.atan2(ball.y - centerY, ball.x - centerX);
-                    const overlap = ball.radius - dist;
-
-                    ball.x -= Math.cos(angle) * overlap;
-                    ball.y -= Math.sin(angle) * overlap;
-
-                    const bounceDirection = Math.random() * Math.PI * 2;
-                    const speed = Math.sqrt(ball.velocityX ** 2 + ball.velocityY ** 2);
-                    ball.velocityX = Math.cos(bounceDirection) * speed;
-                    ball.velocityY = Math.sin(bounceDirection) * speed;
-
-                    ball.bounceCount++;
-                    document.getElementById('collisionSound').play();
-
-                    if (ball.bounceCount >= 10) {
-                        let currentTime = Date.now();
-                        if (currentTime - lastDuplicationTime >= 150) {
-                            balls.push(spawnBall());
-                            lastDuplicationTime = currentTime;
-                            document.getElementById('ballSpawnSound').play();
-                        }
-                    }
-
-                    updateBounceCounter();
-                }
-            }
-        }
-
-        function spawnBall() {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * OCTAGON_RADIUS;
-
-            const x = window.innerWidth / 2 + radius * Math.cos(angle);
-            const y = window.innerHeight / 2 + radius * Math.sin(angle);
-
-            return {
-                x: x,
-                y: y,
-                radius: BALL_RADIUS,
-                velocityX: Math.random() * 4 + 8,
-                velocityY: Math.random() * 4 + 8,
-                color: getRandomColor(),
-                rotation: 0,
-                rotationVelocity: 0,
-                bounceCount: 0,
-            };
-        }
-
-        function drawOctagon() {
-            ctx.save();
-            ctx.translate(window.innerWidth / 2, window.innerHeight / 2);
-            ctx.rotate(octagonAngle);
-
-            ctx.beginPath();
-            for (let i = 0; i < 8; i++) {
-                const angle = Math.PI / 4 * i;
-                const x = OCTAGON_RADIUS * Math.cos(angle);
-                const y = OCTAGON_RADIUS * Math.sin(angle);
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            }
-            ctx.closePath();
-            ctx.strokeStyle = OCTAGON_COLOR;
-            ctx.lineWidth = 4;
-            ctx.stroke();
-
-            ctx.restore();
-        }
-
-        function drawBall(ball) {
-            ctx.save();
-            ctx.translate(ball.x, ball.y);
-            ctx.rotate(ball.rotation);
-
-            ctx.beginPath();
-            ctx.arc(0, 0, ball.radius, 0, 2 * Math.PI);
-            ctx.fillStyle = ball.color;
-            ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            ctx.restore();
-        }
-
-        function updateBounceCounter() {
-            const bounceCounter = document.getElementById('bounceCounter');
-            bounceCounter.textContent = balls.reduce((total, ball) => total + ball.bounceCount, 0);
-
-            bounceCounter.style.color = getRandomColor();
-        }
-
-        function update() {
-            octagonAngle += 0.02;
-
-            for (let ball of balls) {
-                applyPhysics(ball);
-                checkCollision(ball);
-            }
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            drawOctagon();
-
-            for (let ball of balls) {
-                drawBall(ball);
-            }
-
-            document.getElementById('counter').textContent = balls.length;
-
-            const counter = document.getElementById('counter');
-            counter.style.color = getRandomColor();
-
-            requestAnimationFrame(update);
-        }
-
-        window.addEventListener('resize', () => {
-            updateCanvasSize();
-        });
-
-        updateCanvasSize();
-        update();
-    </script>
+      // Using fetch API to send the code to the server for execution
+      fetch('/run-python', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code: code })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Display the output
+        document.getElementById('output').textContent = data.output;
+      })
+      .catch(error => {
+        document.getElementById('output').textContent = "Error: " + error.message;
+      });
+    }
+  </script>
 </body>
 </html>
